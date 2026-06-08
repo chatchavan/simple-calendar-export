@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Date Range Picker</title>
+<style>
+  :root {
+    --accent: #0070f3;
+    --accent-light: #cce0ff;
+    --range-bg: #e0f0ff;
+    --text: #111;
+    --muted: #777;
+    --border: #ddd;
+    --cell: 32px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #4ca3ff;
+      --accent-light: #1a3a6e;
+      --range-bg: #1a3050;
+      --text: #eee;
+      --muted: #888;
+      --border: #444;
+    }
+    body { background: #1e1e1e; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, sans-serif; font-size: 13px; color: var(--text); padding: 16px; }
+
+  .inputs { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+  .inputs label { font-size: 12px; color: var(--muted); }
+  .inputs input[type=text] {
+    width: 100px; padding: 4px 6px; border: 1px solid var(--border);
+    border-radius: 4px; font-size: 13px; color: var(--text);
+    background: transparent;
+  }
+  .inputs input.invalid { border-color: #e55; }
+
+  .calendars { display: flex; gap: 24px; }
+  .month { flex: 0 0 auto; }
+  .month-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px; font-weight: 600;
+  }
+  .month-header button {
+    background: none; border: none; cursor: pointer; color: var(--accent);
+    font-size: 16px; padding: 2px 6px; border-radius: 4px;
+  }
+  .month-header button:hover { background: var(--accent-light); }
+  .month-title { font-size: 14px; }
+
+  .grid { display: grid; grid-template-columns: repeat(7, var(--cell)); gap: 2px; }
+  .day-label {
+    width: var(--cell); height: 20px; text-align: center;
+    font-size: 11px; color: var(--muted); font-weight: 500;
+  }
+  .day {
+    width: var(--cell); height: var(--cell); display: flex; align-items: center;
+    justify-content: center; border-radius: 50%; cursor: pointer;
+    font-size: 13px; user-select: none;
+    transition: background 0.1s;
+  }
+  .day:hover:not(.empty) { background: var(--border); }
+  .day.empty { cursor: default; }
+  .day.in-range { border-radius: 0; background: var(--range-bg); }
+  .day.range-start, .day.range-end {
+    background: var(--accent); color: #fff; border-radius: 50%;
+  }
+  .day.range-start.in-range { border-radius: 50% 0 0 50%; }
+  .day.range-end.in-range   { border-radius: 0 50% 50% 0; }
+  .day.range-start.range-end { border-radius: 50%; }
+  .day.today { font-weight: 700; }
+  .day.other-month { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="inputs">
+  <label>Start</label>
+  <input type="text" id="inputStart" placeholder="YYYY-MM-DD" maxlength="10">
+  <label>End</label>
+  <input type="text" id="inputEnd" placeholder="YYYY-MM-DD" maxlength="10">
+</div>
+
+<div class="calendars" id="calendars"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+let state = {
+  start: null,   // Date | null
+  end: null,     // Date | null
+  viewYear: today.getFullYear(),
+  viewMonth: today.getMonth(),  // 0-based
+  clicking: false,   // waiting for second click
+  dragging: false,
+  dragAnchor: null,
+};
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function ymd(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function parseYMD(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(s + 'T00:00:00');
+  return isNaN(d) ? null : d;
+}
+
+function sameDay(a, b) {
+  return a && b && a.getTime() === b.getTime();
+}
+
+function clamp(date, a, b) {
+  const lo = a < b ? a : b;
+  const hi = a < b ? b : a;
+  if (date < lo) return lo;
+  if (date > hi) return hi;
+  return date;
+}
+
+function notify() {
+  const payload = {
+    start: state.start ? ymd(state.start) : null,
+    end:   state.end   ? ymd(state.end)   : null,
+  };
+  if (window.webkit?.messageHandlers?.dateRange) {
+    window.webkit.messageHandlers.dateRange.postMessage(payload);
+  }
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+const DAY_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+const MONTH_NAMES = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+
+function renderMonth(year, month, container) {
+  container.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'month-header';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.textContent = '‹';
+  prevBtn.addEventListener('click', () => navigate(-1));
+
+  const nextBtn = document.createElement('button');
+  nextBtn.textContent = '›';
+  nextBtn.addEventListener('click', () => navigate(1));
+
+  const title = document.createElement('span');
+  title.className = 'month-title';
+  title.textContent = `${MONTH_NAMES[month]} ${year}`;
+
+  header.append(prevBtn, title, nextBtn);
+  container.appendChild(header);
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+
+  // Day-of-week labels (Mon first)
+  for (const lbl of DAY_LABELS) {
+    const el = document.createElement('div');
+    el.className = 'day-label';
+    el.textContent = lbl;
+    grid.appendChild(el);
+  }
+
+  // First day of month (0=Sun…6=Sat → remap to Mon-first: 0=Mon…6=Sun)
+  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
+  const offset = (firstDow + 6) % 7; // Mon-first offset
+
+  for (let i = 0; i < offset; i++) {
+    const el = document.createElement('div');
+    el.className = 'day empty';
+    grid.appendChild(el);
+  }
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    const el = document.createElement('div');
+    el.className = 'day';
+    el.textContent = d;
+    el.dataset.date = ymd(date);
+
+    if (sameDay(date, today)) el.classList.add('today');
+
+    const rs = state.start, re = state.end;
+    if (rs && re) {
+      const lo = rs < re ? rs : re;
+      const hi = rs < re ? re : rs;
+      if (date > lo && date < hi) el.classList.add('in-range');
+      if (sameDay(date, lo)) { el.classList.add('range-start'); if (date < hi) el.classList.add('in-range'); }
+      if (sameDay(date, hi)) { el.classList.add('range-end');   if (date > lo) el.classList.add('in-range'); }
+    } else if (rs && sameDay(date, rs)) {
+      el.classList.add('range-start');
+    }
+
+    grid.appendChild(el);
+  }
+
+  container.appendChild(grid);
+}
+
+function render() {
+  const c = document.getElementById('calendars');
+  // ensure two month divs
+  while (c.children.length < 2) {
+    const m = document.createElement('div');
+    m.className = 'month';
+    c.appendChild(m);
+  }
+
+  const m0 = state.viewMonth;
+  const y0 = state.viewYear;
+  let m1 = m0 + 1, y1 = y0;
+  if (m1 > 11) { m1 = 0; y1++; }
+
+  renderMonth(y0, m0, c.children[0]);
+  renderMonth(y1, m1, c.children[1]);
+
+  // Sync text inputs (only if not focused)
+  const is = document.getElementById('inputStart');
+  const ie = document.getElementById('inputEnd');
+  if (document.activeElement !== is) {
+    is.value = state.start ? ymd(state.start) : '';
+    is.classList.remove('invalid');
+  }
+  if (document.activeElement !== ie) {
+    ie.value = state.end ? ymd(state.end) : '';
+    ie.classList.remove('invalid');
+  }
+}
+
+function navigate(delta) {
+  state.viewMonth += delta;
+  if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
+  if (state.viewMonth < 0)  { state.viewMonth = 11; state.viewYear--; }
+  render();
+}
+
+// ── Mouse interactions ───────────────────────────────────────────────────────
+function dateFromEl(el) {
+  const s = el.dataset.date;
+  return s ? parseYMD(s) : null;
+}
+
+document.getElementById('calendars').addEventListener('mousedown', e => {
+  const el = e.target.closest('.day:not(.empty)');
+  if (!el) return;
+  const d = dateFromEl(el);
+  if (!d) return;
+
+  if (!state.clicking) {
+    // Start: anchor + begin drag
+    state.start = d;
+    state.end = null;
+    state.clicking = true;
+    state.dragging = true;
+    state.dragAnchor = d;
+  } else {
+    // Second click: set end and finalize
+    if (d < state.start) { state.end = state.start; state.start = d; }
+    else { state.end = d; }
+    state.clicking = false;
+    state.dragging = false;
+    notify();
+  }
+  render();
+});
+
+document.getElementById('calendars').addEventListener('mousemove', e => {
+  if (!state.dragging) return;
+  const el = e.target.closest('.day:not(.empty)');
+  if (!el) return;
+  const d = dateFromEl(el);
+  if (!d) return;
+  const anchor = state.dragAnchor;
+  state.start = d < anchor ? d : anchor;
+  state.end   = d < anchor ? anchor : d;
+  render();
+});
+
+document.addEventListener('mouseup', e => {
+  if (!state.dragging) return;
+  state.dragging = false;
+  // If mouse released outside calendars after dragging: commit if we have end
+  if (state.end) {
+    state.clicking = false;
+    notify();
+  }
+  render();
+});
+
+// ── Text inputs ──────────────────────────────────────────────────────────────
+function handleInput(inputEl, isStart) {
+  const d = parseYMD(inputEl.value.trim());
+  if (!d) {
+    inputEl.classList.add('invalid');
+    return;
+  }
+  inputEl.classList.remove('invalid');
+  if (isStart) state.start = d;
+  else         state.end   = d;
+
+  // Swap if start > end
+  if (state.start && state.end && state.start > state.end) {
+    [state.start, state.end] = [state.end, state.start];
+  }
+
+  // Navigate view to show start
+  const ref = state.start || state.end;
+  if (ref) {
+    state.viewYear = ref.getFullYear();
+    state.viewMonth = ref.getMonth();
+  }
+
+  if (state.start && state.end) {
+    state.clicking = false;
+    notify();
+  }
+  render();
+}
+
+document.getElementById('inputStart').addEventListener('change', function() {
+  handleInput(this, true);
+});
+document.getElementById('inputEnd').addEventListener('change', function() {
+  handleInput(this, false);
+});
+
+// ── API for Swift to call ────────────────────────────────────────────────────
+function setRange(startStr, endStr) {
+  const s = parseYMD(startStr), e = parseYMD(endStr);
+  if (s) state.start = s;
+  if (e) state.end = e;
+  state.clicking = false;
+  if (s) { state.viewYear = s.getFullYear(); state.viewMonth = s.getMonth(); }
+  render();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>

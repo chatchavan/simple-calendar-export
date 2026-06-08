@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Calendar List</title>
+<style>
+  :root {
+    --text: #111;
+    --muted: #666;
+    --border: #e0e0e0;
+    --accent: #0070f3;
+    --hover-bg: #f5f5f5;
+    --group-header-bg: #f9f9f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #eee;
+      --muted: #888;
+      --border: #3a3a3a;
+      --accent: #4ca3ff;
+      --hover-bg: #2a2a2a;
+      --group-header-bg: #252525;
+    }
+    body { background: #1e1e1e; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    padding: 8px 16px 10px;
+    overflow-y: auto;
+  }
+
+  .global-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .global-bar .label { font-weight: 600; }
+  .links { display: flex; gap: 8px; }
+  .links a, .group-links a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 12px;
+  }
+  .links a:hover, .group-links a:hover { text-decoration: underline; }
+
+  .group { margin-bottom: 4px; }
+  .group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 4px;
+    background: var(--group-header-bg);
+    border-radius: 4px;
+    margin-bottom: 2px;
+  }
+  .account-name { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .group-links { display: flex; gap: 6px; }
+
+  .cal-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .cal-row:hover { background: var(--hover-bg); }
+  .cal-row input[type=checkbox] { cursor: pointer; margin: 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+let _groups = [];
+let _checked = new Set();
+let _isLoaded = true;  // DOM is ready by the time Swift calls setCalendars
+
+function setCalendars(groups) {
+    _groups = groups;
+    _checked = new Set(groups.flatMap(g => g.calendars));
+    render();
+}
+
+function getChecked() {
+    return [..._checked];
+}
+
+function render() {
+    const root = document.getElementById('root');
+    root.innerHTML = '';
+
+    const allCals = _groups.flatMap(g => g.calendars);
+
+    // Global bar
+    const globalBar = document.createElement('div');
+    globalBar.className = 'global-bar';
+
+    const lbl = document.createElement('span');
+    lbl.className = 'label';
+    lbl.textContent = 'Calendars';
+    globalBar.appendChild(lbl);
+
+    const globalLinks = document.createElement('div');
+    globalLinks.className = 'links';
+    const allLink = makeLink('Select All', () => { _checked = new Set(allCals); render(); });
+    const noneLink = makeLink('Select None', () => { _checked = new Set(); render(); });
+    globalLinks.append(allLink, noneLink);
+    globalBar.appendChild(globalLinks);
+    root.appendChild(globalBar);
+
+    // Groups
+    for (const group of _groups) {
+        const section = document.createElement('div');
+        section.className = 'group';
+
+        const header = document.createElement('div');
+        header.className = 'group-header';
+
+        const acctName = document.createElement('span');
+        acctName.className = 'account-name';
+        acctName.textContent = group.accountName;
+        header.appendChild(acctName);
+
+        const groupLinks = document.createElement('div');
+        groupLinks.className = 'group-links';
+        groupLinks.appendChild(makeLink('All',  () => { group.calendars.forEach(c => _checked.add(c));    render(); }));
+        groupLinks.appendChild(makeLink('None', () => { group.calendars.forEach(c => _checked.delete(c)); render(); }));
+        header.appendChild(groupLinks);
+        section.appendChild(header);
+
+        for (const cal of group.calendars) {
+            const label = document.createElement('label');
+            label.className = 'cal-row';
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = _checked.has(cal);
+            cb.addEventListener('change', () => {
+                cb.checked ? _checked.add(cal) : _checked.delete(cal);
+            });
+
+            const name = document.createElement('span');
+            name.textContent = cal;
+
+            label.append(cb, name);
+            section.appendChild(label);
+        }
+
+        root.appendChild(section);
+    }
+}
+
+function makeLink(text, onClick) {
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = text;
+    a.addEventListener('click', e => { e.preventDefault(); onClick(); });
+    return a;
+}
+</script>
+</body>
+</html>
