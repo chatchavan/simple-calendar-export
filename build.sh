@@ -1,20 +1,25 @@
 #!/bin/bash
-# build.sh — compile Simple Calendar Export.app
+# build.sh — compile Simple Calendar Export.app into build/
 # Usage: bash build.sh
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUNDLE=~/Applications/"Simple Calendar Export.app"
+BUILD_DIR="$SCRIPT_DIR/build"
+BUNDLE="$BUILD_DIR/Simple Calendar Export.app"
 BINARY="$BUNDLE/Contents/MacOS/CalendarExportGUI"
 RESOURCES_DST="$BUNDLE/Contents/Resources"
 
 echo "Building Simple Calendar Export.app..."
 
-# Remove old bundle name if it still exists
-if [[ -d ~/Applications/CalendarExportGUI.app ]]; then
-  rm -rf ~/Applications/CalendarExportGUI.app
-  echo "Removed old CalendarExportGUI.app"
-fi
+# Clean up old ~/Applications install if it exists
+for old in \
+  ~/Applications/"Simple Calendar Export.app" \
+  ~/Applications/CalendarExportGUI.app; do
+  if [[ -d "$old" ]]; then
+    rm -rf "$old"
+    echo "Removed old $(basename "$old")"
+  fi
+done
 
 mkdir -p "$BUNDLE/Contents/MacOS"
 mkdir -p "$RESOURCES_DST"
@@ -42,6 +47,8 @@ cat > "$BUNDLE/Contents/Info.plist" << 'EOF'
   <string>AppIcon</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>15.0</string>
   <key>LSUIElement</key>
   <false/>
 </dict>
@@ -50,7 +57,7 @@ EOF
 
 # Hash Swift sources; skip compile+re-sign if nothing changed.
 # Re-signing invalidates the TCC permission entry, so we avoid it when possible.
-HASH_FILE="$SCRIPT_DIR/.source_hash"
+HASH_FILE="$BUILD_DIR/.source_hash"
 CURRENT_HASH=$(cat "$SCRIPT_DIR/Sources/"*.swift | md5)
 PREV_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "")
 
@@ -62,6 +69,7 @@ else
     -framework SwiftUI \
     -framework WebKit \
     -framework EventKit \
+    -target arm64-apple-macosx15.0 \
     -o "$BINARY" \
     -O
   echo "Compiled: $BINARY ($(du -sh "$BINARY" | cut -f1))"

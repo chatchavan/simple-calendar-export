@@ -6,4 +6,4 @@ CLAUDE.local.md
 CLAUDE.local.workspace/
 
 # Build artifacts
-.source_hash
+build/
