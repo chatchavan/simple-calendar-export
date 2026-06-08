@@ -5,7 +5,7 @@ A macOS .app bundle (no Xcode) that exports Apple Calendar events as BusyCal CSV
 ## How to build
 
 ```bash
-bash build.sh   # creates ~/Applications/CalendarExportGUI.app
+bash build.sh   # creates ~/Applications/Simple Calendar Export.app
 ```
 
 The script hashes `Sources/*.swift` and skips compile + codesign when sources are unchanged. This preserves the macOS TCC permission entry — re-signing invalidates it and requires the user to re-grant Full Access.

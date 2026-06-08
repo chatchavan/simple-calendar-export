@@ -1,4 +1,4 @@
-# CalendarExportGUI
+# Simple Calendar Export
 
 A macOS app for exporting Apple Calendar events to **BusyCal-compatible CSV** or **ICS** for a user-selected date range. Ships as both a GUI app and a command-line tool in one `.app` bundle.
 
@@ -8,7 +8,7 @@ A macOS app for exporting Apple Calendar events to **BusyCal-compatible CSV** or
 bash build.sh
 ```
 
-This compiles the app, creates `~/Applications/CalendarExportGUI.app`, and installs the icon. On first launch macOS will ask for Calendar access — grant **Full Access** in System Settings → Privacy & Security → Calendars.
+This compiles the app, creates `~/Applications/Simple Calendar Export.app`, and installs the icon. On first launch macOS will ask for Calendar access — grant **Full Access** in System Settings → Privacy & Security → Calendars.
 
 If using the CLI from Terminal, also grant Terminal **Full Access** in the same panel.
 
@@ -37,9 +37,9 @@ Options:
 Examples:
 
 ```bash
-~/Applications/CalendarExportGUI.app/Contents/MacOS/CalendarExportGUI --list
+~/Applications/Simple Calendar Export.app/Contents/MacOS/CalendarExportGUI --list
 
-~/Applications/CalendarExportGUI.app/Contents/MacOS/CalendarExportGUI \
+~/Applications/Simple Calendar Export.app/Contents/MacOS/CalendarExportGUI \
   --start 2026-06-01 --end 2026-06-07 --format ics
 ```
 
@@ -61,6 +61,7 @@ Resources/
   calendar_list.html       Account-grouped calendar checkboxes
 Design/
   1x/Artboard 1.png        1024×1024 app icon source
+  screenshot.png           App screenshot for README
 build.sh                   Compile, bundle, codesign, icon
 ```
 

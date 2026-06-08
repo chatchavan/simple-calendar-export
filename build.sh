@@ -1,14 +1,20 @@
 #!/bin/bash
-# build.sh — compile CalendarExportGUI.app
+# build.sh — compile Simple Calendar Export.app
 # Usage: bash build.sh
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUNDLE=~/Applications/CalendarExportGUI.app
+BUNDLE=~/Applications/"Simple Calendar Export.app"
 BINARY="$BUNDLE/Contents/MacOS/CalendarExportGUI"
 RESOURCES_DST="$BUNDLE/Contents/Resources"
 
-echo "Building CalendarExportGUI.app..."
+echo "Building Simple Calendar Export.app..."
+
+# Remove old bundle name if it still exists
+if [[ -d ~/Applications/CalendarExportGUI.app ]]; then
+  rm -rf ~/Applications/CalendarExportGUI.app
+  echo "Removed old CalendarExportGUI.app"
+fi
 
 mkdir -p "$BUNDLE/Contents/MacOS"
 mkdir -p "$RESOURCES_DST"
@@ -23,13 +29,15 @@ cat > "$BUNDLE/Contents/Info.plist" << 'EOF'
   <key>CFBundleIdentifier</key>
   <string>local.calendar-export-gui</string>
   <key>CFBundleName</key>
-  <string>CalendarExportGUI</string>
+  <string>Simple Calendar Export</string>
+  <key>CFBundleDisplayName</key>
+  <string>Simple Calendar Export</string>
   <key>CFBundleExecutable</key>
   <string>CalendarExportGUI</string>
   <key>CFBundleVersion</key>
   <string>1</string>
   <key>NSCalendarsFullAccessUsageDescription</key>
-  <string>CalendarExportGUI reads your calendar events for export.</string>
+  <string>Simple Calendar Export reads your calendar events for export.</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>NSPrincipalClass</key>
@@ -62,7 +70,7 @@ else
   echo "$CURRENT_HASH" > "$HASH_FILE"
   echo ""
   echo "NOTE: Re-signed. If calendar access breaks, re-grant in:"
-  echo "  System Settings → Privacy & Security → Calendars → CalendarExportGUI → Full Access"
+  echo "  System Settings → Privacy & Security → Calendars → Simple Calendar Export → Full Access"
 fi
 
 # Always sync resources (HTML/CSS changes don't require re-sign)
@@ -73,7 +81,7 @@ ICON_SRC="$SCRIPT_DIR/Design/1x/Artboard 1.png"
 ICON_DST="$RESOURCES_DST/AppIcon.icns"
 if [[ -f "$ICON_SRC" && ! -f "$ICON_DST" ]]; then
   echo "Building AppIcon.icns..."
-  ICONSET=$(mktemp -d).iconset
+  ICONSET=$(mktemp -d)/AppIcon.iconset
   mkdir -p "$ICONSET"
   for size in 16 32 128 256 512; do
     sips -z $size $size "$ICON_SRC" --out "$ICONSET/icon_${size}x${size}.png" > /dev/null
@@ -81,13 +89,13 @@ if [[ -f "$ICON_SRC" && ! -f "$ICON_DST" ]]; then
     sips -z $double $double "$ICON_SRC" --out "$ICONSET/icon_${size}x${size}@2x.png" > /dev/null
   done
   iconutil -c icns "$ICONSET" -o "$ICON_DST"
-  rm -rf "$ICONSET"
+  rm -rf "$(dirname "$ICONSET")"
   echo "Icon:     $ICON_DST"
 fi
 
 echo ""
-echo "Done. Run: open $BUNDLE"
-echo "Or CLI:    $BINARY --list"
+echo "Done. Run: open \"$BUNDLE\""
+echo "Or CLI:    \"$BINARY\" --list"
 echo ""
 echo "First launch will prompt for Calendar access."
-echo "If denied: System Settings → Privacy & Security → Calendars → CalendarExportGUI → Full Access"
+echo "If denied: System Settings → Privacy & Security → Calendars → Simple Calendar Export → Full Access"

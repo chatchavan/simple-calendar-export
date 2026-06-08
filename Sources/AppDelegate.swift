@@ -15,7 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Calendar Export"
+        window.title = "Simple Calendar Export"
         window.contentView = NSHostingView(rootView: contentView)
         window.delegate = self
         window.center()
@@ -39,11 +39,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let appItem = NSMenuItem()
         mainMenu.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About Calendar Export",
+        appMenu.addItem(withTitle: "About Simple Calendar Export",
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
                         keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit Calendar Export",
+        appMenu.addItem(withTitle: "Quit Simple Calendar Export",
                         action: #selector(NSApplication.terminate(_:)),
                         keyEquivalent: "q")
         appItem.submenu = appMenu
