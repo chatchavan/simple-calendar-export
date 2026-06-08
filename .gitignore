@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Claude private files
+CLAUDE.local.md
+CLAUDE.local.workspace/
+
+# Build artifacts
+.source_hash
