@@ -2,6 +2,8 @@
 
 A macOS app for exporting Apple Calendar events to **BusyCal-compatible CSV** or **ICS** for a user-selected date range. Ships as both a GUI app and a command-line tool in one `.app` bundle.
 
+![Simple Calendar Export screenshot](Design/screenshot.png)
+
 ## Setup
 
 ```bash
