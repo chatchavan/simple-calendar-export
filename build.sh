@@ -70,9 +70,19 @@ else
     -framework WebKit \
     -framework EventKit \
     -target arm64-apple-macosx15.0 \
-    -o "$BINARY" \
+    -o "$BINARY.arm64" \
     -O
-  echo "Compiled: $BINARY ($(du -sh "$BINARY" | cut -f1))"
+  swiftc "$SCRIPT_DIR/Sources/"*.swift \
+    -framework AppKit \
+    -framework SwiftUI \
+    -framework WebKit \
+    -framework EventKit \
+    -target x86_64-apple-macosx15.0 \
+    -o "$BINARY.x86_64" \
+    -O
+  lipo -create "$BINARY.arm64" "$BINARY.x86_64" -output "$BINARY"
+  rm "$BINARY.arm64" "$BINARY.x86_64"
+  echo "Compiled: $BINARY ($(du -sh "$BINARY" | cut -f1), universal)"
   codesign --sign - --force "$BUNDLE"
   echo "Signed:   $(codesign -dv "$BUNDLE" 2>&1 | grep Identifier)"
   echo "$CURRENT_HASH" > "$HASH_FILE"
